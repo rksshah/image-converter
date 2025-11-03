@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JavaScript Code Checker Tool</title>
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      background: #f8f9fa;
+      padding: 20px;
+    }
+    .editor-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    textarea {
+      font-family: Consolas, monospace;
+      font-size: 1rem;
+      height: 300px;
+      resize: vertical;
+    }
+    .error-box {
+      background: #f8d7da;
+      border: 1px solid #f5c2c7;
+      color: #842029;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+    }
+    .success-box {
+      background: #d1e7dd;
+      border: 1px solid #badbcc;
+      color: #0f5132;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 6px;
+      font-family: sans-serif;
+    }
+    .fix-suggestion {
+      margin-top: 10px;
+      font-style: italic;
+      font-weight: 600;
+      color: #0d6efd;
+    }
+  </style>
+</head>
+<body>
+  <div class="editor-container">
+    <h2 class="mb-4 text-center">JavaScript Code Checker Tool</h2>
+    <label for="codeInput" class="form-label">Enter your JavaScript code below:</label>
+    <textarea
+      id="codeInput"
+      class="form-control"
+      spellcheck="false"
+      placeholder="Type your JavaScript code here..."
+    ></textarea>
+    <button id="checkBtn" class="btn btn-primary mt-3">Check Code</button>
+    <div id="result" class="mt-4"></div>
+  </div>
+
+  <!-- jQuery CDN -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script>
+    // Function to detect errors using try-catch and new Function
+    function checkSyntax(code) {
+      // Attempt to create a new Function from the code
+      try {
+        new Function(code);
+        return null; // no syntax errors
+      } catch (e) {
+        return e; // return the error object
+      }
+    }
+
+    // Parse error to identify line number & message
+    function parseErrorMessage(error) {
+      if (!error) return null;
+
+      // Chrome and Firefox style error message usually like:
+      // SyntaxError: Unexpected token '{' at line 5
+      // or: SyntaxError: Unexpected identifier at line 2:5
+
+      let message = error.message || 'Syntax Error';
+      let line = null;
+
+      // Try to extract line number by parsing error stack or message
+      // Some browsers contain line info after ":" in message or stack
+
+      // Examples:
+      // SyntaxError: Unexpected token ')' at line 3
+      // or SyntaxError: Unexpected token ')' at <anonymous>:3:15
+
+      // Regex to capture line number from stack or message
+      let lineMatch = null;
+      if (error.stack) {
+        // Try to extract line number from stack trace
+        // Stack trace lines look like: at new Function (<anonymous>:3:20)
+        // We try to get the number after ":"
+        lineMatch = error.stack.match(/<anonymous>:(\d+):(\d+)/);
+        if (lineMatch && lineMatch[1]) {
+          line = parseInt(lineMatch[1], 10);
+        }
+      }
+
+      if (!line) {
+        // Try from message (older style)
+        let msgLineMatch = message.match(/at line (\d+)/i);
+        if (msgLineMatch && msgLineMatch[1]) {
+          line = parseInt(msgLineMatch[1], 10);
+        }
+      }
+
+      return {
+        message,
+        line,
+      };
+    }
+
+    // Suggest a simple fix for some common errors
+    function getFixSuggestion(code, errorMessage, lineNumber) {
+      // We'll try very simple suggestions
+
+      if (!errorMessage) return '';
+
+      // Common case: missing semicolon at end of line
+      // If error message contains Unexpected token or missing ), }
+      // We can suggest to check missing semicolon or bracket
+
+      if (
+        errorMessage.includes('Unexpected token') ||
+        errorMessage.includes('missing') ||
+        errorMessage.includes('Unexpected end of input')
+      ) {
+        // Try to detect if line is missing semicolon (naive approach)
+        if (lineNumber != null) {
+          let codeLines = code.split('\n');
+          let lineText = codeLines[lineNumber - 1] || '';
+          // If line doesn't end with ; , { , } , or empty skip semicolon suggestion
+          if (
+            lineText.trim() !== '' &&
+            !lineText.trim().endsWith(';') &&
+            !lineText.trim().endsWith('{') &&
+            !lineText.trim().endsWith('}') &&
+            !lineText.trim().endsWith(',') &&
+            !lineText.trim().endsWith(')')
+          ) {
+            return `Suggestion: Consider adding a semicolon at the end of line ${lineNumber}.`;
+          }
+        }
+
+        // Suggest checking brackets
+        return 'Suggestion: Check for missing or extra brackets {}, parentheses (), or quotes ""/\'\'.';
+      }
+
+      // If some other errors, no suggestion
+      return '';
+    }
+
+    $(document).ready(function () {
+      $('#checkBtn').on('click', function () {
+        let code = $('#codeInput').val();
+
+        $('#result').empty();
+
+        if (!code.trim()) {
+          $('#result').html(
+            `<div class="alert alert-warning">Please enter some JavaScript code to check.</div>`
+          );
+          return;
+        }
+
+        let error = checkSyntax(code);
+        if (error === null) {
+          // No syntax errors
+          $('#result').html(
+            `<div class="success-box">No syntax errors found! Your code looks good.</div>`
+          );
+        } else {
+          let parsed = parseErrorMessage(error);
+
+          let errMsg = parsed ? parsed.message : error.message || 'Syntax error detected.';
+          let errLine = parsed ? parsed.line : null;
+
+          let suggestion = getFixSuggestion(code, errMsg, errLine);
+
+          let html = `<div class="error-box"><strong>Error:</strong> ${errMsg}`;
+          if (errLine) {
+            html += `<br/><strong>Line:</strong> ${errLine}`;
+          }
+          if (suggestion) {
+            html += `<div class="fix-suggestion">${suggestion}</div>`;
+          }
+          html += `</div>`;
+
+          $('#result').html(html);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
