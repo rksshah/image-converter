@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Professional Currency Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #2c3e50, #4ca1af);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #f0f4f8;
+  }
+  .converter {
+    background: #1f2a38cc;
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 30px 40px;
+    width: 380px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+  h2 {
+    margin-bottom: 25px;
+    font-weight: 600;
+    font-size: 1.8rem;
+    text-align: center;
+    color: #e0e7ff;
+  }
+  label {
+    display: block;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    user-select: none;
+  }
+  input[type="number"], 
+  input[type="search"] {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    background-color: #2a3a4d;
+    color: #e0e7ff;
+    box-shadow: inset 0 0 5px #1761a0;
+    transition: box-shadow 0.3s ease;
+    box-sizing: border-box;
+  }
+  input[type="number"]:focus, 
+  input[type="search"]:focus {
+    box-shadow: 0 0 10px #4ca1af;
+    background-color: #32475c;
+  }
+  button {
+    margin-top: 30px;
+    width: 100%;
+    padding: 14px 0;
+    background: #4ca1af;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #f0f4f8;
+    cursor: pointer;
+    box-shadow: 0 5px 15px #3b8394;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #3b8394;
+  }
+  .result {
+    margin-top: 28px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #a2d2ff;
+    min-height: 32px;
+    text-align: center;
+  }
+
+  /* Search dropdown enhancements */
+  .search-dropdown {
+    position: relative;
+  }
+  #from-search-list,
+  #to-search-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #2a3a4d;
+    max-height: 150px;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    z-index: 1000;
+    display: none;
+    margin: 0;
+    padding: 0;
+  }
+  #from-search-list div,
+  #to-search-list div {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: #d1d9e6;
+    user-select: none;
+    font-size: 0.95rem;
+  }
+  #from-search-list div:hover,
+  #to-search-list div:hover,
+  #from-search-list div.focused,
+  #to-search-list div.focused {
+    background: #4ca1af;
+    color: #f0f4f8;
+  }
+
+  /* Scrollbar styling */
+  #from-search-list::-webkit-scrollbar,
+  #to-search-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  #from-search-list::-webkit-scrollbar-thumb,
+  #to-search-list::-webkit-scrollbar-thumb {
+    background-color: #4ca1af;
+    border-radius: 10px;
+  }
+
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="converter" role="main" aria-label="Currency converter">
+  <h2>Currency Converter</h2>
+
+  <label for="amount">Amount</label>
+  <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" aria-describedby="amount-desc" />
+  <div id="amount-desc" class="sr-only">Enter the amount you want to convert</div>
+
+  <label for="from-search">From (Search currency or country)</label>
+  <div class="search-dropdown">
+    <input type="search" id="from-search" placeholder="Search currency or country" autocomplete="off" aria-autocomplete="list" aria-controls="from-search-list" aria-expanded="false" aria-haspopup="listbox" />
+    <div id="from-search-list" role="listbox" tabindex="-1"></div>
+  </div>
+
+  <label for="to-search">To (Search currency or country)</label>
+  <div class="search-dropdown">
+    <input type="search" id="to-search" placeholder="Search currency or country" autocomplete="off" aria-autocomplete="list" aria-controls="to-search-list" aria-expanded="false" aria-haspopup="listbox" />
+    <div id="to-search-list" role="listbox" tabindex="-1"></div>
+  </div>
+
+  <button id="convert-btn" aria-label="Convert currency">Convert</button>
+
+  <div class="result" id="result" role="status" aria-live="polite"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  const currencyApiURL = 'https://api.exchangerate-api.com/v4/latest/USD';
+
+  let rates = {};
+  let currencyList = [];
+  let currencyNames = {
+    "USD": "United States Dollar",
+    "EUR": "Euro",
+    "JPY": "Japanese Yen",
+    "GBP": "British Pound Sterling",
+    "AUD": "Australian Dollar",
+    "CAD": "Canadian Dollar",
+    "CHF": "Swiss Franc",
+    "CNY": "Chinese Yuan",
+    "SEK": "Swedish Krona",
+    "NZD": "New Zealand Dollar",
+    "MXN": "Mexican Peso",
+    "SGD": "Singapore Dollar",
+    "HKD": "Hong Kong Dollar",
+    "NOK": "Norwegian Krone",
+    "KRW": "South Korean Won",
+    "TRY": "Turkish Lira",
+    "RUB": "Russian Ruble",
+    "INR": "Indian Rupee",
+    "BRL": "Brazilian Real",
+    "ZAR": "South African Rand",
+    "DKK": "Danish Krone",
+    "PLN": "Polish Zloty",
+    "TWD": "New Taiwan Dollar",
+    "THB": "Thai Baht",
+    "IDR": "Indonesian Rupiah",
+    "HUF": "Hungarian Forint",
+    "CZK": "Czech Koruna",
+    "ILS": "Israeli New Shekel",
+    "CLP": "Chilean Peso",
+    "PHP": "Philippine Peso",
+    "AED": "United Arab Emirates Dirham",
+    "COP": "Colombian Peso",
+    "SAR": "Saudi Riyal",
+    "MYR": "Malaysian Ringgit",
+    "RON": "Romanian Leu"
+  };
+
+  function extendCurrencyNames() {
+    currencyList.forEach(cur => {
+      if (!currencyNames[cur]) {
+        currencyNames[cur] = cur;
+      }
+    });
+  }
+
+  function filterCurrencies(query) {
+    if (!query) return currencyList;
+    query = query.toLowerCase();
+    return currencyList.filter(c => {
+      const name = currencyNames[c].toLowerCase();
+      return c.toLowerCase().includes(query) || name.includes(query);
+    });
+  }
+
+  function renderSearchList($container, items) {
+    $container.empty();
+    if (items.length === 0) {
+      $container.hide();
+      return;
+    }
+    items.forEach(c => {
+      let displayText = `${c} - ${currencyNames[c]}`;
+      $container.append(`<div role="option" tabindex="-1" data-currency="${c}">${displayText}</div>`);
+    });
+    $container.show();
+  }
+
+  function setupSearchInput($input, $list, otherInput) {
+    $input.on('input', () => {
+      const val = $input.val().trim();
+      const filtered = filterCurrencies(val);
+      renderSearchList($list, filtered);
+      $input.attr('aria-expanded', filtered.length > 0);
+    });
+
+    // Keyboard navigation & selection
+    $input.on('keydown', e => {
+      const $options = $list.children('div:visible');
+      let index = $options.index($list.children('div.focused'));
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (index < $options.length - 1) {
+          index++;
+        } else {
+          index = 0;
+        }
+        $options.removeClass('focused');
+        $options.eq(index).addClass('focused').focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (index > 0) {
+          index--;
+        } else {
+          index = $options.length - 1;
+        }
+        $options.removeClass('focused');
+        $options.eq(index).addClass('focused').focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (index >= 0) {
+          let selectedCurrency = $options.eq(index).data('currency');
+          $input.val(selectedCurrency);
+          $list.hide();
+          $input.attr('aria-expanded', false);
+          $input.focus();
+          if (otherInput && $input.val() === otherInput.val()) {
+            $('#result').text('Please select two different currencies.');
+          } else {
+            $('#result').text('');
+          }
+        }
+      } else if (e.key === 'Escape') {
+        $list.hide();
+        $input.attr('aria-expanded', false);
+      }
+    });
+
+    $list.on('mousedown', 'div', function(e) {
+      e.preventDefault();
+      const selectedCurrency = $(this).data('currency');
+      $input.val(selectedCurrency);
+      $list.hide();
+      $input.attr('aria-expanded', false);
+      $input.focus();
+      if (otherInput && $input.val() === otherInput.val()) {
+        $('#result').text('Please select two different currencies.');
+      } else {
+        $('#result').text('');
+      }
+    });
+
+    // Hide list if clicking outside
+    $(document).on('click', (e) => {
+      if (!$input.is(e.target) && !$list.is(e.target) && $list.has(e.target).length === 0) {
+        $list.hide();
+        $input.attr('aria-expanded', false);
+      }
+    });
+  }
+
+  function fetchRates() {
+    $('#result').text('Loading exchange rates...');
+    $.getJSON(currencyApiURL)
+      .done(data => {
+        rates = data.rates;
+        currencyList = Object.keys(rates).sort();
+        extendCurrencyNames();
+        $('#result').text('');
+        $('#from-search').val('USD');
+        $('#to-search').val('EUR');
+      })
+      .fail(() => {
+        $('#result').text('Failed to load exchange rates. Please try again later.');
+      });
+  }
+
+  function convertCurrency(amount, from, to) {
+    if (!rates[from] || !rates[to]) return null;
+    let amountInUSD = amount / rates[from];
+    let convertedAmount = amountInUSD * rates[to];
+    return convertedAmount;
+  }
+
+  $(document).ready(() => {
+    fetchRates();
+
+    setupSearchInput($('#from-search'), $('#from-search-list'), $('#to-search'));
+    setupSearchInput($('#to-search'), $('#to-search-list'), $('#from-search'));
+
+    $('#convert-btn').click(() => {
+      let amount = parseFloat($('#amount').val());
+      let from = $('#from-search').val().toUpperCase();
+      let to = $('#to-search').val().toUpperCase();
+
+      if (isNaN(amount) || amount <= 0) {
+        $('#result').text('Please enter a valid amount greater than zero.');
+        return;
+      }
+      if (from === to) {
+        $('#result').text('Please select two different currencies.');
+        return;
+      }
+      if (!rates[from]) {
+        $('#result').text(`Currency "${from}" not supported.`);
+        return;
+      }
+      if (!rates[to]) {
+        $('#result').text(`Currency "${to}" not supported.`);
+        return;
+      }
+
+      let result = convertCurrency(amount, from, to);
+      if (result === null) {
+        $('#result').text('Conversion error. Please try again.');
+      } else {
+        $('#result').html(
+          `<span title="${currencyNames[from]}">${amount.toFixed(2)} ${from}</span> = ` +
+          `<span title="${currencyNames[to]}">${result.toFixed(2)} ${to}</span>`
+        );
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

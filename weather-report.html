@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weather Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #2980b9, #6dd5fa);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+  }
+
+  .weather-container {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 30px 40px;
+    border-radius: 20px;
+    width: 360px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+
+  .weather-container:hover {
+    transform: translateY(-4px);
+  }
+
+  h1 {
+    margin-bottom: 25px;
+    font-weight: 700;
+    font-size: 2rem;
+    letter-spacing: 1.2px;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    user-select: none;
+    text-align: left;
+    color: #d0e6f9;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    box-sizing: border-box;
+    background: #3a5f8e;
+    color: #dbe9ff;
+    box-shadow: inset 0 0 8px #1e3a5a;
+    transition: box-shadow 0.3s ease, background 0.3s ease;
+  }
+
+  input[type="text"]:focus {
+    box-shadow: 0 0 12px #7ec8ff;
+    background: #2c4a75;
+    color: #f0f9ff;
+  }
+
+  button {
+    margin-top: 25px;
+    width: 100%;
+    padding: 14px 0;
+    background: #0a74da;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #e0f0ff;
+    cursor: pointer;
+    box-shadow: 0 6px 18px #0a5ca8;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+
+  button:hover {
+    background: #083f6a;
+    transform: scale(1.03);
+  }
+
+  .weather-result {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(255 255 255 / 0.15);
+    border-radius: 15px;
+    box-shadow: inset 0 0 10px rgba(255 255 255 / 0.2);
+  }
+
+  .weather-location {
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  .weather-temp {
+    font-size: 3rem;
+    font-weight: 800;
+    margin: 10px 0 5px;
+  }
+
+  .weather-desc {
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    margin-bottom: 15px;
+  }
+
+  .weather-details {
+    display: flex;
+    justify-content: space-around;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #d0e6f9;
+  }
+
+  .weather-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 10px;
+  }
+
+  .error-message {
+    margin-top: 20px;
+    color: #ff6b6b;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="weather-container" role="main" aria-label="Weather report">
+  <h1>Weather Report</h1>
+
+  <label for="city-input">Enter city name</label>
+  <input type="text" id="city-input" placeholder="e.g. New York" aria-describedby="city-desc" />
+  <div id="city-desc" class="sr-only">Type the city name to get weather information</div>
+
+  <button id="get-weather-btn" aria-label="Get weather report">Get Weather</button>
+
+  <div class="weather-result" id="weather-result" aria-live="polite" aria-atomic="true"></div>
+  <div class="error-message" id="error-message" role="alert"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  // Use Open-Meteo API for free weather data (no API key needed)
+  // We'll first get latitude/longitude from Open-Meteo's geocoding API, then fetch weather
+
+  function clearDisplay() {
+    $('#weather-result').empty();
+    $('#error-message').text('');
+  }
+
+  function displayWeather(location, data) {
+    const tempC = data.current.temperature_2m;
+    const windSpeed = data.current.wind_speed_10m;
+    const humidity = data.current.relative_humidity_2m;
+    const weatherCode = data.current.weather_code;
+
+    const weatherMap = {
+      0: "Clear sky",
+      1: "Mainly clear",
+      2: "Partly cloudy",
+      3: "Overcast",
+      45: "Fog",
+      48: "Depositing rime fog",
+      51: "Light drizzle",
+      61: "Rain",
+      63: "Moderate rain",
+      65: "Heavy rain",
+      71: "Snowfall",
+      80: "Rain showers",
+      95: "Thunderstorm"
+    };
+
+    const desc = weatherMap[weatherCode] || "Unknown";
+    const iconUrl = `https://openweathermap.org/img/wn/${getIconCode(weatherCode)}@2x.png`;
+
+    const html = `
+      <div class="weather-location">${location}</div>
+      <img class="weather-icon" src="${iconUrl}" alt="${desc} icon" />
+      <div class="weather-temp">${tempC.toFixed(1)}°C</div>
+      <div class="weather-desc">${desc}</div>
+      <div class="weather-details">
+        <div>Humidity: ${humidity}%</div>
+        <div>Wind: ${windSpeed} m/s</div>
+      </div>
+    `;
+    $('#weather-result').html(html);
+  }
+
+  function getIconCode(code) {
+    if (code === 0) return '01d';
+    if ([1, 2].includes(code)) return '02d';
+    if (code === 3) return '04d';
+    if ([45, 48].includes(code)) return '50d';
+    if ([51, 61, 63, 65, 80].includes(code)) return '09d';
+    if ([95].includes(code)) return '11d';
+    return '03d';
+  }
+
+  function displayError(message) {
+    $('#error-message').text(message);
+  }
+
+  function getWeather(city) {
+    clearDisplay();
+    $('#get-weather-btn').prop('disabled', true).text('Loading...');
+
+    // Step 1: Geocode city to get lat/lon
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+
+    $.getJSON(geoUrl)
+      .done(geoData => {
+        if (!geoData.results || geoData.results.length === 0) {
+          displayError('City not found. Please try another.');
+          $('#get-weather-btn').prop('disabled', false).text('Get Weather');
+          return;
+        }
+
+        const location = geoData.results[0];
+        const lat = location.latitude;
+        const lon = location.longitude;
+        const placeName = `${location.name}, ${location.country}`;
+
+        // Step 2: Fetch weather using coordinates
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`;
+
+        $.getJSON(weatherUrl)
+          .done(weatherData => {
+            displayWeather(placeName, weatherData);
+          })
+          .fail(() => {
+            displayError('Unable to fetch weather data. Try again later.');
+          })
+          .always(() => {
+            $('#get-weather-btn').prop('disabled', false).text('Get Weather');
+          });
+      })
+      .fail(() => {
+        displayError('Could not fetch location data. Please check your network.');
+        $('#get-weather-btn').prop('disabled', false).text('Get Weather');
+      });
+  }
+
+  $(document).ready(() => {
+    $('#get-weather-btn').click(() => {
+      const city = $('#city-input').val().trim();
+      if (!city) {
+        displayError('Please enter a city name.');
+        return;
+      }
+      getWeather(city);
+    });
+
+    $('#city-input').on('keydown', (e) => {
+      if (e.key === 'Enter') {
+        $('#get-weather-btn').click();
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
