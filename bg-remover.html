@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Multi Image Background Remover with ZIP Download</title>
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- jQuery CDN -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <!-- JSZip CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FileSaver CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    body {
+      background: #f8f9fa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 900px;
+      margin-top: 30px;
+      margin-bottom: 60px;
+    }
+    #dropZone {
+      border: 3px dashed #adb5bd;
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      color: #495057;
+      font-weight: 500;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      user-select: none;
+    }
+    #dropZone.dragover {
+      background-color: #e2e6ea;
+      border-color: #495057;
+      color: #212529;
+    }
+    .images-list {
+      margin-top: 25px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .image-card {
+      width: 180px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgb(0 0 0 / 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      position: relative;
+    }
+    .image-card img {
+      width: 160px;
+      height: 160px;
+      object-fit: contain;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      background: #f8f9fa;
+      cursor: default;
+      user-select: none;
+    }
+    .image-card .filename {
+      margin-top: 8px;
+      font-size: 14px;
+      word-break: break-word;
+      text-align: center;
+      min-height: 40px;
+      user-select: text;
+    }
+    .image-card .btn-download {
+      margin-top: 10px;
+      width: 100%;
+    }
+    .image-card .status {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      user-select: none;
+    }
+    #btnRemoveAll,
+    #btnDownloadAll {
+      margin: 20px 5px 5px;
+    }
+    #loadingSpinner {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+    }
+    #downloadAllBtnGroup {
+      text-align: center;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="text-center mb-4">Multi Image Background Remover with ZIP Download</h2>
+
+    <div id="dropZone" tabindex="0" aria-label="Drag and drop images here or click to select files">
+      Drag &amp; Drop Images Here or Click to Select
+      <input type="file" id="fileInput" multiple accept="image/*" style="display:none" />
+    </div>
+
+    <div id="loadingSpinner" class="spinner-border text-primary" role="status" aria-live="polite" aria-label="Processing images">
+      <span class="visually-hidden">Processing images...</span>
+    </div>
+
+    <div class="images-list" id="imagesList" aria-live="polite" aria-relevant="additions"></div>
+
+    <div id="downloadAllBtnGroup" class="text-center mt-4" style="display:none;">
+      <button id="btnRemoveAll" class="btn btn-danger me-2" disabled>Remove Backgrounds (All)</button>
+      <button id="btnDownloadAll" class="btn btn-success" disabled>Download All Processed Images (ZIP)</button>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS Bundle CDN (Popper + Bootstrap JS) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+  <script>
+    $(function () {
+      // ======= IMPORTANT: Set your valid remove.bg API key here =======
+      const apiKey = "4644SCU3E18DqX8CDAg8ns9y";
+      // ================================================================
+
+      const $dropZone = $("#dropZone");
+      const $fileInput = $("#fileInput");
+      const $imagesList = $("#imagesList");
+      const $loadingSpinner = $("#loadingSpinner");
+      const $btnRemoveAll = $("#btnRemoveAll");
+      const $btnDownloadAll = $("#btnDownloadAll");
+      const $downloadAllBtnGroup = $("#downloadAllBtnGroup");
+
+      let images = []; // Array of {id, file, previewUrl, processedUrl|null, status}
+
+      function generateId() {
+        return Math.random().toString(36).substr(2, 9);
+      }
+
+      function renderImages() {
+        $imagesList.empty();
+        if (images.length === 0) {
+          $downloadAllBtnGroup.hide();
+        } else {
+          $downloadAllBtnGroup.show();
+        }
+
+        images.forEach(({ id, previewUrl, file, processedUrl, status }) => {
+          const src = status === "processed" && processedUrl ? processedUrl : previewUrl;
+          const disabledDownload = status !== "processed" ? "disabled" : "";
+          const ariaDisabled = status !== "processed";
+
+          const $card = $(`
+            <div class="image-card" aria-label="Image card for ${file.name}">
+              <img src="${src}" alt="${file.name}" />
+              <div class="filename" title="${file.name}">${file.name}</div>
+              <button class="btn btn-sm btn-primary btn-download" ${disabledDownload} type="button" aria-disabled="${ariaDisabled}">
+                Download
+              </button>
+              <div class="status"></div>
+            </div>
+          `);
+
+          const $statusDiv = $card.find(".status");
+          if (status === "processing") {
+            $statusDiv.text("Processing");
+          } else if (status === "processed") {
+            $statusDiv.text("Done");
+          } else if (status === "error") {
+            $statusDiv.text("Error");
+          } else {
+            $statusDiv.text("");
+          }
+
+          $card.find(".btn-download").on("click", function () {
+            if (processedUrl) {
+              const link = document.createElement("a");
+              link.href = processedUrl;
+              const downloadName = file.name.replace(/\.[^/.]+$/, "") + "-no-bg.png";
+              link.download = downloadName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          });
+
+          $imagesList.append($card);
+        });
+
+        const canRemove = images.some(img => img.status === "loaded" || img.status === "error") && !images.some(img => img.status === "processing");
+        $btnRemoveAll.prop("disabled", !canRemove);
+        $btnDownloadAll.prop("disabled", !images.some(img => img.status === "processed"));
+      }
+
+      function addFiles(files) {
+        const fileArray = Array.from(files);
+        const imageFiles = fileArray.filter(f => f.type.startsWith("image/"));
+        if (imageFiles.length === 0) return;
+        imageFiles.forEach((file) => {
+          // Prevent duplicates by name + size + lastModified (naive)
+          const exists = images.some(img => img.file.name === file.name && img.file.size === file.size && img.file.lastModified === file.lastModified);
+          if (exists) return;
+          const id = generateId();
+          const previewUrl = URL.createObjectURL(file);
+          images.push({
+            id,
+            file,
+            previewUrl,
+            processedUrl: null,
+            status: "loaded",
+          });
+        });
+        renderImages();
+      }
+
+      $dropZone.on("dragenter dragover", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $dropZone.addClass("dragover");
+      });
+
+      $dropZone.on("dragleave dragend drop", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $dropZone.removeClass("dragover");
+      });
+
+      $dropZone.on("drop", function (e) {
+        const dt = e.originalEvent.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          addFiles(dt.files);
+          $fileInput.val("");
+        }
+      });
+
+      $dropZone.on("click keypress", function (e) {
+        if (e.type === "click" || (e.type === "keypress" && (e.key === "Enter" || e.key === " "))) {
+          $fileInput.trigger("click");
+        }
+      });
+
+      $fileInput.on("change", function () {
+        if (this.files && this.files.length > 0) {
+          addFiles(this.files);
+          $fileInput.val("");
+        }
+      });
+
+      async function removeBackgroundAll() {
+        if (!images.length) return;
+        if (!apiKey || apiKey === "YOUR_REMOVE_BG_API_KEY_HERE") {
+          alert(
+            "Please enter your remove.bg API key in the code before using this feature."
+          );
+          return;
+        }
+
+        $btnRemoveAll.prop("disabled", true);
+        $btnDownloadAll.prop("disabled", true);
+        $loadingSpinner.show();
+
+        for (let i = 0; i < images.length; i++) {
+          if (images[i].status === "loaded" || images[i].status === "error") {
+            images[i].status = "processing";
+            renderImages();
+            try {
+              const processedUrl = await removeBgAPI(images[i].file);
+              if (images[i].processedUrl) URL.revokeObjectURL(images[i].processedUrl);
+              images[i].processedUrl = processedUrl;
+              images[i].status = "processed";
+            } catch (err) {
+              images[i].status = "error";
+              console.error(err);
+              alert(`Error processing "${images[i].file.name}": ${err.message}`);
+            }
+            renderImages();
+          }
+        }
+
+        $loadingSpinner.hide();
+
+        $btnRemoveAll.prop("disabled", true);
+        const hasProcessed = images.some(img => img.status === "processed");
+        $btnDownloadAll.prop("disabled", !hasProcessed);
+      }
+
+      function removeBgAPI(file) {
+        return new Promise((resolve, reject) => {
+          const formData = new FormData();
+          formData.append("image_file", file);
+          formData.append("size", "auto");
+
+          $.ajax({
+            url: "https://api.remove.bg/v1.0/removebg",
+            method: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+              "X-Api-Key": apiKey,
+            },
+            xhrFields: {
+              responseType: "blob",
+            },
+            success: function (data) {
+              const url = URL.createObjectURL(data);
+              resolve(url);
+            },
+            error: function (xhr, status, error) {
+              let errorMsg = "Unknown API error";
+              try {
+                if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.length) {
+                  errorMsg = xhr.responseJSON.errors.map(e => e.title).join(", ");
+                } else if (xhr.responseText) {
+                  let resp = JSON.parse(xhr.responseText);
+                  if (resp.errors && resp.errors.length) {
+                    errorMsg = resp.errors.map(e => e.title).join(", ");
+                  } else if (resp.detail) {
+                    errorMsg = resp.detail;
+                  }
+                }
+              } catch(e) {
+                // ignore JSON parse errors
+              }
+              reject(new Error(`${errorMsg} (Status: ${xhr.status})`));
+            },
+          });
+        });
+      }
+
+      async function downloadAllZip() {
+        const processedImages = images.filter((img) => img.status === "processed" && img.processedUrl);
+        if (processedImages.length === 0) {
+          alert("No processed images to download.");
+          return;
+        }
+
+        $btnDownloadAll.prop("disabled", true);
+        $btnRemoveAll.prop("disabled", true);
+        $loadingSpinner.show();
+
+        const zip = new JSZip();
+        const folder = zip.folder("no-bg-images");
+
+        // Fetch each processed image blob and add to zip
+        for (const img of processedImages) {
+          try {
+            const response = await fetch(img.processedUrl);
+            const blob = await response.blob();
+            // Use original filename + "-no-bg.png"
+            const filename = img.file.name.replace(/\.[^/.]+$/, "") + "-no-bg.png";
+            folder.file(filename, blob);
+          } catch (error) {
+            console.error("Failed to fetch image for zip:", error);
+            alert(`Failed to fetch processed image for ${img.file.name}`);
+          }
+        }
+
+        try {
+          const content = await zip.generateAsync({ type: "blob" });
+          saveAs(content, "no-bg-images.zip");
+        } catch (error) {
+          alert("Failed to generate ZIP file.");
+          console.error(error);
+        }
+
+        $loadingSpinner.hide();
+        $btnDownloadAll.prop("disabled", false);
+        $btnRemoveAll.prop("disabled", false);
+      }
+
+      $btnRemoveAll.on("click", function () {
+        removeBackgroundAll();
+      });
+
+      $btnDownloadAll.on("click", function () {
+        downloadAllZip();
+      });
+
+      window.addEventListener("beforeunload", () => {
+        images.forEach(({ previewUrl, processedUrl }) => {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          if (processedUrl) URL.revokeObjectURL(processedUrl);
+        });
+      });
+
+      renderImages();
+    });
+  </script>
+</body>
+</html>

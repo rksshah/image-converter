@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Language Convert & Copy Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+  body {
+    font-family: 'Roboto', sans-serif;
+    background: #f4f7fa;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .container {
+    background: #fff;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
+    border-radius: 12px;
+    padding: 30px 40px;
+  }
+  h1 {
+    text-align: center;
+    color: #222;
+    margin-bottom: 30px;
+  }
+  label {
+    font-weight: 700;
+    color: #555;
+    display: block;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+  textarea {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    border: 1.5px solid #ddd;
+    padding: 12px 15px;
+    font-size: 1rem;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 6px #3f51b5aa;
+  }
+  select {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1.5px solid #ddd;
+    font-size: 1rem;
+    margin-top: 5px;
+    transition: border-color 0.3s ease;
+  }
+  select:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 6px #3f51b5aa;
+  }
+  button {
+    margin-top: 25px;
+    width: 100%;
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    padding: 14px 0;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #303f9f;
+  }
+  .output-container {
+    position: relative;
+    margin-top: 30px;
+  }
+  .output-textarea {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    border: 1.5px solid #ddd;
+    padding: 12px 15px;
+    font-size: 1rem;
+    resize: vertical;
+    background-color: #fafafa;
+    color: #222;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #3f51b5;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  .copy-btn:hover {
+    background-color: #303f9f;
+  }
+  .message {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: green;
+    text-align: center;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container" role="main" aria-label="Language convert and copy tool">
+  <h1>Language Convert & Copy</h1>
+  
+  <label for="inputText">Enter Text</label>
+  <textarea id="inputText" placeholder="Type or paste your text here..." aria-describedby="inputHelp"></textarea>
+  
+  <label for="languageSelect">Select Language</label>
+  <select id="languageSelect" aria-describedby="languageHelp">
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+    <option value="es">Spanish</option>
+    <option value="fr">French</option>
+    <option value="de">German</option>
+    <option value="zh">Chinese (Simplified)</option>
+    <option value="ja">Japanese</option>
+    <option value="ar">Arabic</option>
+  </select>
+  
+  <button id="convertBtn" aria-label="Convert text to selected language">Convert</button>
+
+  <div class="output-container">
+    <label for="outputText">Converted Text</label>
+    <textarea id="outputText" readonly aria-live="polite" aria-atomic="true"></textarea>
+    <button class="copy-btn" id="copyBtn" aria-label="Copy converted text to clipboard">Copy</button>
+  </div>
+
+  <div class="message" id="message">Copied to clipboard!</div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  // Use a free translation API: LibreTranslate public API (for demonstration)
+  // Note: For production use, consider a paid & reliable translation API.
+  const apiURL = 'use Google\Cloud\Translate\V3\TranslateClient;';
+
+  $('#convertBtn').on('click', function() {
+    let text = $('#inputText').val().trim();
+    let targetLang = $('#languageSelect').val();
+
+    if (!text) {
+      alert('Please enter text to convert.');
+      return;
+    }
+    
+    $('#outputText').val('Translating...');
+    $('#message').hide();
+
+    $.ajax({
+      url: apiURL,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        q: text,
+        source: 'auto',
+        target: targetLang,
+        format: 'text'
+      }),
+      success: function(res) {
+        $('#outputText').val(res.translatedText);
+      },
+      error: function() {
+        $('#outputText').val('');
+        alert('Translation failed. Please try again later.');
+      }
+    });
+  });
+
+  $('#copyBtn').on('click', function() {
+    const output = $('#outputText').val();
+    if (!output) return;
+    navigator.clipboard.writeText(output).then(() => {
+      $('#message').fadeIn(200).delay(1200).fadeOut(200);
+    }).catch(() => {
+      alert('Failed to copy text.');
+    });
+  });
+</script>
+
+</body>
+</html>

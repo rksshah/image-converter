@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Professional Text Analyzer with Validation</title>
+    <!-- Bootstrap CSS v5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous" />
+    <!-- Google Fonts: "Inter" -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .analyzer-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow:
+                0 4px 6px rgba(0, 0, 0, 0.1),
+                0 1px 3px rgba(0, 0, 0, 0.06);
+            max-width: 600px;
+            width: 100%;
+            padding: 2.5rem 3rem;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .analyzer-container:hover {
+            box-shadow:
+                0 10px 15px rgba(0, 0, 0, 0.15),
+                0 4px 6px rgba(0, 0, 0, 0.10);
+        }
+
+        h1 {
+            font-weight: 700;
+            color: #222e50;
+            text-align: center;
+            margin-bottom: 1.8rem;
+            letter-spacing: 0.04em;
+            font-size: 2rem;
+        }
+
+        label.form-label {
+            font-weight: 600;
+            font-size: 1.15rem;
+            color: #334155;
+            margin-bottom: 0.8rem;
+            display: block;
+            user-select: none;
+        }
+
+        textarea#textInput {
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #475569;
+            border: 1.8px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            resize: vertical;
+            min-height: 160px;
+            box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.07);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+            caret-color: #4f46e5;
+            outline-offset: 2px;
+        }
+
+        textarea#textInput::placeholder {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        textarea#textInput:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+            background-color: #f9fafb;
+            color: #1e293b;
+        }
+
+        #countHelp {
+            margin-top: 1rem;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #64748b;
+            display: flex;
+            justify-content: flex-start;
+            gap: 1rem;
+            user-select: none;
+            flex-wrap: wrap;
+        }
+
+        #countHelp span {
+            background-color: #eef2ff;
+            padding: 8px 20px;
+            border-radius: 9999px;
+            box-shadow: 0 2px 8px rgb(99 102 241 / 0.15);
+            min-width: 130px;
+            text-align: center;
+            color: #4f46e5;
+            letter-spacing: 0.03em;
+            transition: background-color 0.3s ease;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+            user-select: text;
+        }
+
+        #countHelp span:hover {
+            background-color: #c7d2fe;
+            cursor: default;
+        }
+
+        .btn-group-custom {
+            margin-top: 1.8rem;
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-custom {
+            flex: 1 1 120px;
+            font-weight: 600;
+            color: #fff;
+            background-color: #4f46e5;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgb(79 70 229 / 0.4);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            user-select: none;
+        }
+
+        .btn-custom:hover,
+        .btn-custom:focus {
+            background-color: #4338ca;
+            box-shadow: 0 6px 12px rgb(67 56 202 / 0.6);
+            outline: none;
+        }
+
+        .btn-copy {
+            background-color: #2563eb;
+            box-shadow: 0 4px 8px rgb(37 99 235 / 0.4);
+        }
+
+        .btn-copy:hover,
+        .btn-copy:focus {
+            background-color: #1d4ed8;
+            box-shadow: 0 6px 12px rgb(29 78 216 / 0.6);
+            outline: none;
+        }
+
+        .btn-custom:disabled,
+        .btn-copy:disabled {
+            background-color: #a5b4fc !important;
+            box-shadow: none !important;
+            cursor: not-allowed !important;
+            color: #dee3fc !important;
+        }
+
+        @media (max-width: 575.98px) {
+            .analyzer-container {
+                padding: 2rem 2rem;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            #countHelp {
+                justify-content: center;
+            }
+
+            #countHelp span {
+                min-width: 120px;
+                padding: 6px 16px;
+                font-size: 1rem;
+            }
+
+            .btn-group-custom {
+                gap: 0.5rem;
+            }
+
+            .btn-custom {
+                flex: 1 1 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="analyzer-container" role="main" aria-label="Text analyzer tool">
+        <h1>Professional Text Analyzer</h1>
+        <form onsubmit="return false;">
+            <label for="textInput" class="form-label">Enter your text below:</label>
+            <textarea id="textInput" aria-describedby="countHelp" placeholder="Start typing or paste your text here..."
+                spellcheck="true" autocomplete="off"></textarea>
+
+            <div class="btn-group-custom" role="group" aria-label="Text transformation controls">
+                <button type="button" class="btn-custom" id="btn-uppercase" aria-label="Convert text to uppercase"
+                    disabled>
+                    Uppercase
+                </button>
+                <button type="button" class="btn-custom" id="btn-lowercase" aria-label="Convert text to lowercase"
+                    disabled>
+                    Lowercase
+                </button>
+                <button type="button" class="btn-custom" id="btn-capitalize" aria-label="Capitalize each word" disabled>
+                    Capitalize
+                </button>
+                <button type="button" class="btn-custom btn-copy" id="btn-copy" aria-label="Copy text to clipboard"
+                    disabled>
+                    Copy
+                </button>
+            </div>
+
+            <div id="countHelp" aria-live="polite" aria-atomic="true" role="status">
+                <span id="wordCount">Words: 0</span>
+                <span id="charCount">Characters: 0</span>
+            </div>
+        </form>
+    </main>
+
+    <!-- Bootstrap Bundle JS (Popper included) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
+    <script>
+        const textInput = document.getElementById("textInput");
+        const wordCountEl = document.getElementById("wordCount");
+        const charCountEl = document.getElementById("charCount");
+        const btnUpper = document.getElementById("btn-uppercase");
+        const btnLower = document.getElementById("btn-lowercase");
+        const btnCapitalize = document.getElementById("btn-capitalize");
+        const btnCopy = document.getElementById("btn-copy");
+
+        function countWords(text) {
+            const wordsArray = text.trim().split(/\s+/);
+            return text.trim() === "" ? 0 : wordsArray.length;
+        }
+
+        // Enable or disable buttons based on content presence
+        function toggleButtons(enable) {
+            btnUpper.disabled = !enable;
+            btnLower.disabled = !enable;
+            btnCapitalize.disabled = !enable;
+            btnCopy.disabled = !enable;
+        }
+
+        function updateCounts() {
+            const text = textInput.value;
+            const words = countWords(text);
+            const chars = text.length;
+
+            wordCountEl.textContent = `Words: ${words}`;
+            charCountEl.textContent = `Characters: ${chars}`;
+
+            toggleButtons(chars > 0);
+        }
+
+        function toUpperCaseText() {
+            textInput.value = textInput.value.toUpperCase();
+            updateCounts();
+            textInput.focus();
+        }
+
+        function toLowerCaseText() {
+            textInput.value = textInput.value.toLowerCase();
+            updateCounts();
+            textInput.focus();
+        }
+
+        function capitalizeText() {
+            const words = textInput.value.toLowerCase().split(/\s+/);
+            const capitalizedWords = words.map(word => {
+                if (word.length === 0) return "";
+                return word[0].toUpperCase() + word.slice(1);
+            });
+            textInput.value = capitalizedWords.join(" ");
+            updateCounts();
+            textInput.focus();
+        }
+
+        async function copyText() {
+            if (btnCopy.disabled) return;
+            try {
+                await navigator.clipboard.writeText(textInput.value);
+                alert("Text copied to clipboard!");
+            } catch (err) {
+                alert("Failed to copy text. Please copy manually.");
+            }
+        }
+
+        // Event listeners
+        textInput.addEventListener("input", updateCounts);
+        btnUpper.addEventListener("click", toUpperCaseText);
+        btnLower.addEventListener("click", toLowerCaseText);
+        btnCapitalize.addEventListener("click", capitalizeText);
+        btnCopy.addEventListener("click", copyText);
+
+        // Initialize counts and button states on load
+        updateCounts();
+    </script>
+</body>
+
+</html>
